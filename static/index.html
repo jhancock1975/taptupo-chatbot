@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Taptupo Chatbot</title>
+  <style>
+    body { font-family: sans-serif; margin: 2rem; }
+    #chat { border: 1px solid #ccc; padding: 1rem; max-width: 600px; }
+    .msg.user { text-align: right; }
+    .msg.bot  { text-align: left; }
+  </style>
+</head>
+<body>
+  <h1>Welcome to taptupo.com</h1>
+  <button id="login">Log In</button>
+  <div id="chat" style="display:none;">
+    <div id="msgs"></div>
+    <input id="inp" placeholder="Say something…" />
+    <button id="send">Send</button>
+  </div>
+  <script>
+    const poolDomain = "https://YOUR_COGNITO_DOMAIN.auth.eu-west-1.amazoncognito.com";
+    const clientId   = "YOUR_WEB_CLIENT_ID";
+    const apiBase    = "https://YOUR_API_GATEWAY_ID.execute-api.eu-west-1.amazonaws.com/prod";
+
+    function onLogin() {
+      window.location = \`\${poolDomain}/login?response_type=token&client_id=\${clientId}&redirect_uri=\${location.origin}\`;
+    }
+
+    function parseHash() {
+      if (!location.hash) return null;
+      return Object.fromEntries(location.hash.slice(1).split("&").map(kv => kv.split("=")));
+    }
+
+    document.getElementById("login").onclick = onLogin;
+    window.addEventListener("load", () => {
+      const auth = parseHash();
+      if (auth && auth.access_token) {
+        localStorage.setItem("jwt", auth.access_token);
+        document.getElementById("login").style.display = "none";
+        document.getElementById("chat").style.display  = "block";
+      }
+    });
+
+    document.getElementById("send").onclick = async () => {
+      const text = document.getElementById("inp").value;
+      document.getElementById("msgs").innerHTML += `<div class="msg user">\${text}</div>`;
+      document.getElementById("inp").value = "";
+      const res = await fetch(\`\${apiBase}/chat\`, {
+        method: "POST",
+        headers: {
+          "Authorization": localStorage.getItem("jwt"),
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({message:text})
+      });
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+      while(true) {
+        const {done, value} = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value);
+        const parts = buf.split("\n");
+        buf = parts.pop();
+        parts.forEach(p => {
+          document.getElementById("msgs").innerHTML += `<div class="msg bot">\${p}</div>`;
+        });
+      }
+    };
+  </script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+fastapi
+mangum
+qdrant-client
+model-control-protocol
+databases
+sqlalchemy
+psycopg2-binary
+requests
